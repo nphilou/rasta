@@ -73,6 +73,69 @@ def train_model_from_directory(directory_path, model, model_name='model', target
     return model
 
 
+def train_model(path, model, model_name='model', target_size=(256, 256), batch_size=64,
+                horizontal_flip=False, epochs=30, steps_per_epoch=None, validation_path=None,
+                validation_steps=None, params=None, preprocessing=None, distortions=0.):
+    # Naming and creating folder
+    now = datetime.datetime.now()
+    model_name = model_name + '_' + str(now.year) + '_' + str(now.month) + '_' + str(now.day) + '-' + str(
+        now.hour) + ':' + str(now.minute) + ':' + str(now.second)
+
+    model_name_temp = model_name
+    i = 0
+    while os.path.exists(join(SAVINGS_DIR, model_name_temp)):
+        model_name_temp = model_name + '(' + str(i) + ')'
+        i += 1
+    MODEL_DIR = join(SAVINGS_DIR, model_name_temp)
+    os.makedirs(MODEL_DIR)
+
+    # Calculate the number of steps, in order to use all the set for one epoch
+
+    # n_files = count_files(directory_path)
+    # TODO : adapt to npy file
+    n_files = 200
+    n_val_files = count_files(validation_path)
+    if steps_per_epoch == None:
+        steps_per_epoch = n_files // batch_size
+    if validation_steps == None:
+        validation_steps = n_val_files // batch_size
+
+    _presaving(model, MODEL_DIR, params)
+
+    preprocessing_fc = None
+    if preprocessing == 'imagenet':
+        preprocessing_fc = imagenet_preprocess_input
+    elif preprocessing == 'wp':
+        preprocessing_fc = wp_preprocess_input
+    elif preprocessing == 'custom':
+        preprocessing_fc = custom_preprocess_input
+
+    # Training
+    train_datagen = ImageDataGenerator(horizontal_flip=horizontal_flip, preprocessing_function=preprocessing_fc,
+                                       rotation_range=90 * distortions, width_shift_range=distortions,
+                                       height_shift_range=distortions, zoom_range=distortions)
+    test_datagen = ImageDataGenerator(preprocessing_function=preprocessing_fc)
+    
+    train_generator = train_datagen.flow(path, y=None, batch_size=batch_size)
+
+    tbCallBack = TensorBoard(log_dir=MODEL_DIR, histogram_freq=0, write_graph=True, write_images=True)
+    if validation_path != None:
+        checkpoint = ModelCheckpoint(join(MODEL_DIR, 'model.h5'), monitor='val_acc', verbose=1, save_best_only=True,
+                                     mode='max')
+        validation_generator = test_datagen.flow_from_directory(validation_path, target_size=target_size,
+                                                                batch_size=batch_size, class_mode='categorical')
+        history = model.fit_generator(train_generator, steps_per_epoch=steps_per_epoch, epochs=epochs,
+                                      callbacks=[tbCallBack, checkpoint], validation_data=validation_generator,
+                                      validation_steps=validation_steps)
+    else:
+        history = model.fit_generator(train_generator, steps_per_epoch=steps_per_epoch, epochs=epochs,
+                                      callbacks=[tbCallBack])
+
+    _postsaving(model, history, MODEL_DIR)
+
+    return model
+
+
 def continue_training(model_path, directory_path, saving=True, target_size=(256, 256), batch_size=64,
                       horizontal_flip=False, epochs=30, steps_per_epoch=1000, validation_path=None,
                       validation_steps=110):
