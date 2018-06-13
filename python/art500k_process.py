@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     for file in files_name:
         batch = np.load(file)
-        keep_beg, keep_end = split_labels(keep_list, sep=3)
+        keep_beg, keep_end = split_labels(keep_list, sep=10000)
         subset = get_subset(batch, keep_beg)
         X_train = np.append(X_train, subset, axis=0)
         keep_list = keep_end
