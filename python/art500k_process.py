@@ -3,6 +3,7 @@ import numpy as np
 import os
 from os.path import join
 import argparse
+import matplotlib.pyplot as plt
 
 PATH = os.path.dirname(__file__)
 
@@ -17,15 +18,24 @@ def split_labels(labels, sep=10000):
 
 if __name__ == '__main__':
 
-    LABEL_PATH = '/home/local/shared/bnegrevergne/data/art500k/data_labels_v1.txt'
+    # LABEL_PATH = '/home/local/shared/bnegrevergne/data/art500k/data_labels_v1.txt'
     # /Users/Philippe/Programmation/rasta/
+    LABEL_PATH = '../data/art500k/data_labels_v1.txt'
 
     df = pd.read_table(LABEL_PATH,
                        sep='\t|\s{4,}', header=0, engine='python')
 
     # with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-    # print(df.loc[:, 'style'].dropna())
-    # print(df.groupby('style').size())
+    #    print(df.loc[:, 'style'].dropna())
+
+    count = df.groupby('style').size().sort_values(ascending=False)
+
+    plt.rcParams["figure.figsize"] = (40, 10)
+    plt.bar(count.keys(), count)
+    plt.xticks(rotation=90)
+    plt.tight_layout()
+    plt.savefig('classes.png')
+    plt.show()
 
     # df.loc[:, 'style'].dropna().plot(x='style')
     # print(df.loc[df['style'].isin(['Impressionism', 'Expressionism'])].head())
